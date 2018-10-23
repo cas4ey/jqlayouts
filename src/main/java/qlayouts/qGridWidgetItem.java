@@ -1,13 +1,15 @@
+package du.ui.qlayouts;
 
-final class qGridLayoutItem
+final class qGridWidgetItem
 {
     private final java.awt.Component m_widget;
+    private final java.awt.GridBagConstraints m_constraints = new java.awt.GridBagConstraints();
     private final int m_column;
     private final int m_row;
     private final int m_columnSpan;
     private final int m_rowSpan;
 
-    qGridLayoutItem(java.awt.Component widget, int row, int column, int rowSpan, int columnSpan)
+    qGridWidgetItem(java.awt.Component widget, int row, int column, int rowSpan, int columnSpan)
     {
         m_widget = widget;
         m_column = column;
@@ -39,5 +41,10 @@ final class qGridLayoutItem
     final java.awt.Component widget()
     {
         return m_widget;
+    }
+
+    final java.awt.GridBagConstraints constraints()
+    {
+        return m_constraints;
     }
 }

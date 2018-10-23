@@ -1,15 +1,15 @@
+package du.ui.qlayouts;
+
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.util.ArrayList;
 import java.util.Collections;
 
-public class qGridLayout extends JPanel implements ComponentListener
+public class qGridWidget extends JPanel
 {
     public enum Fill
     {
@@ -46,36 +46,84 @@ public class qGridLayout extends JPanel implements ComponentListener
     private int m_verticalSpacing = 0;
     private int m_columnCount = 0;
     private int m_rowCount = 0;
-    private ArrayList<qGridLayoutItem> m_layoutItems = new ArrayList<>();
+    private ArrayList<qGridWidgetItem> m_layoutItems = new ArrayList<>();
     private final ArrayList<Integer> m_columnStretchFactors = new ArrayList<>();
     private final ArrayList<Integer> m_rowStretchFactors = new ArrayList<>();
-    private final ArrayList<Box.Filler> m_autoSpacers = new ArrayList<>();
-    private final GridBagLayout m_layout = new GridBagLayout();
-    private final JComponent m_parent;
+    private final JPanel m_container = new JPanel(new GridBagLayout());
 
-    public qGridLayout(JComponent parent)
+    public qGridWidget()
     {
-        setLayout(m_layout);
-
-        m_parent = parent;
+        super(new BorderLayout());
+        //setBorder(new EmptyBorder(0, 0, 0, 0));
+        setBorder(new LineBorder(Color.blue, 1));
         setMargins(0);
-
-        parent.setLayout(new BorderLayout());
-        parent.add(this, BorderLayout.CENTER);
-
-        addComponentListener(this);
-        parent.addComponentListener(this);
+        add(m_container, BorderLayout.CENTER);
     }
 
-    public final JComponent parent()
+    @Override
+    public final Dimension getMinimumSize()
     {
-        return m_parent;
+        final Insets insets = getInsets();
+        final Dimension d = new Dimension(insets.left + insets.right,
+                insets.top + insets.bottom);
+
+        for (int row = 0; row < m_rowCount; ++row)
+        {
+            for (int column = 0; column < m_columnCount; ++column)
+            {
+                final qGridWidgetItem item = getLayoutItem(row, column);
+                if (item == null || item.row() != row || item.column() != column)
+                {
+                    continue;
+                }
+
+                final GridBagConstraints gbc = item.constraints();
+                final Dimension wd = item.widget().getMinimumSize();
+                d.width += wd.width + gbc.insets.left + gbc.insets.right;
+                d.height += wd.height + gbc.insets.top + gbc.insets.bottom;
+            }
+        }
+
+        return d;
+    }
+
+    @Override
+    public final Dimension getPreferredSize()
+    {
+        final Insets insets = getInsets();
+        final Dimension d = new Dimension(insets.left + insets.right,
+                insets.top + insets.bottom);
+
+        for (int row = 0; row < m_rowCount; ++row)
+        {
+            for (int column = 0; column < m_columnCount; ++column)
+            {
+                final qGridWidgetItem item = getLayoutItem(row, column);
+                if (item == null || item.row() != row || item.column() != column)
+                {
+                    continue;
+                }
+
+                final GridBagConstraints gbc = item.constraints();
+                final Dimension wd = item.widget().getPreferredSize();
+                d.width += wd.width + gbc.insets.left + gbc.insets.right;
+                d.height += wd.height + gbc.insets.top + gbc.insets.bottom;
+            }
+        }
+
+        return d;
+    }
+
+    @Override
+    public final Dimension getMaximumSize()
+    {
+        return m_container.getMaximumSize();
     }
 
     public final void setMargins(int top, int left, int bottom, int right)
     {
-        setBorder(new LineBorder(Color.red, 1));
-        //setBorder(new EmptyBorder(top, left, bottom, right));
+        m_container.setBorder(new LineBorder(Color.red, 1));
+        //m_container.setBorder(new EmptyBorder(top, left, bottom, right));
     }
 
     public final void setMargins(int value)
@@ -90,25 +138,25 @@ public class qGridLayout extends JPanel implements ComponentListener
 
     public final void setLeftMargin(int value)
     {
-        final Insets i = m_parent.getInsets();
+        final Insets i = m_container.getInsets();
         setBorder(new EmptyBorder(i.top, value, i.bottom, i.right));
     }
 
     public final void setRightMargin(int value)
     {
-        final Insets i = m_parent.getInsets();
+        final Insets i = m_container.getInsets();
         setBorder(new EmptyBorder(i.top, i.left, i.bottom, value));
     }
 
     public final void setTopMargin(int value)
     {
-        final Insets i = m_parent.getInsets();
+        final Insets i = m_container.getInsets();
         setBorder(new EmptyBorder(value, i.left, i.bottom, i.right));
     }
 
     public final void setBottomMargin(int value)
     {
-        final Insets i = m_parent.getInsets();
+        final Insets i = m_container.getInsets();
         setBorder(new EmptyBorder(i.top, i.left, value, i.right));
     }
 
@@ -136,103 +184,6 @@ public class qGridLayout extends JPanel implements ComponentListener
     public final int verticalSpacing()
     {
         return m_verticalSpacing;
-    }
-
-//    @Override
-//    public final Dimension getMinimumSize()
-//    {
-//        final Insets insets = getInsets();
-//        final Dimension d = new Dimension(insets.left + insets.right,
-//                                          insets.top + insets.bottom);
-//
-//        final int spacing = m_horizontalSpacing * m_autoSpacers.size();
-//        if (m_direction == Direction.Horizontal)
-//        {
-//            d.width += spacing;
-//        }
-//        else
-//        {
-//            d.height += spacing;
-//        }
-//
-//        for (qLayoutItem item : m_layoutItems)
-//        {
-//            if (!item.widget().isVisible() || item.widget() instanceof Filler)
-//            {
-//                continue;
-//            }
-//
-//            final Dimension wd = item.widget().getMinimumSize();
-//            d.setSize(d.width + wd.width, d.height + wd.height);
-//        }
-//
-//        return d;
-//    }
-//
-//    @Override
-//    public final Dimension getPreferredSize()
-//    {
-//        final Insets insets = getInsets();
-//        final Dimension d = new Dimension(insets.left + insets.right,
-//                                          insets.top + insets.bottom);
-//
-//        final int spacing = m_horizontalSpacing * m_autoSpacers.size();
-//        if (m_direction == Direction.Horizontal)
-//        {
-//            d.width += spacing;
-//        }
-//        else
-//        {
-//            d.height += spacing;
-//        }
-//
-//        for (qLayoutItem item : m_layoutItems)
-//        {
-//            if (!item.widget().isVisible() || item.widget() instanceof Filler)
-//            {
-//                continue;
-//            }
-//
-//            final Dimension wd = item.widget().getPreferredSize();
-//            d.setSize(d.width + wd.width, d.height + wd.height);
-//        }
-//
-//        return d;
-//    }
-
-    @Override
-    public final void componentResized(ComponentEvent e)
-    {
-        if (e.getComponent() == this)
-        {
-            update();
-        }
-        else if (e.getComponent() == m_parent)
-        {
-            setPreferredSize(parent().getPreferredSize());
-            setSize(parent().getSize());
-        }
-    }
-
-    @Override
-    public final void componentHidden(ComponentEvent e)
-    {
-        if (e.getComponent() != this)
-        {
-            update();
-        }
-    }
-
-    @Override
-    public final void componentMoved(ComponentEvent e) {}
-
-    @Override
-    public final void componentShown(ComponentEvent e)
-    {
-        if (e.getComponent() != this)
-        {
-            update();
-        }
     }
 
     public final void addWidget(JComponent widget, int row, int column) throws qException
@@ -270,7 +221,7 @@ public class qGridLayout extends JPanel implements ComponentListener
     public final void addWidget(JComponent widget, int row, int column, int rowSpan, int columnSpan,
                                 qAlignment alignment, Fill fill) throws qException
     {
-        if (widget == m_parent)
+        if (widget == getParent() || widget == this)
         {
             throw new qException("Can't add widget into itself");
         }
@@ -298,17 +249,17 @@ public class qGridLayout extends JPanel implements ComponentListener
                 {
                     if (getLayoutItem(r, c) != null)
                     {
-                        throw new qException(String.format("qGridLayout: The cell (%d; %d) has been already taken!", r, c));
+                        throw new qException(String.format("qGridWidget: The cell (%d; %d) has been already taken!", r, c));
                     }
                 }
             }
         }
 
         extendLayout(row + rowSpan, column + columnSpan);
-        final qGridLayoutItem item = new qGridLayoutItem(widget, row, column, rowSpan, columnSpan);
+        final qGridWidgetItem item = new qGridWidgetItem(widget, row, column, rowSpan, columnSpan);
         setLayoutItem(item, row, column, rowSpan, columnSpan);
 
-        final GridBagConstraints gbc = new GridBagConstraints();
+        final GridBagConstraints gbc = item.constraints();
         gbc.fill = fill.fill();
         gbc.anchor = alignment.anchor();
         gbc.gridx = column;
@@ -335,16 +286,9 @@ public class qGridLayout extends JPanel implements ComponentListener
 
         widget.setAlignmentX(alignment.horizontal().value());
         widget.setAlignmentY(alignment.vertical().value());
-        if (column == 0 && row == 0)
-            widget.setMaximumSize(widget.getPreferredSize());
-        add(widget, gbc);
+        widget.setMinimumSize(widget.getPreferredSize());
 
-        //if (stretch == 0)
-        //{
-        //widget.setMinimumSize(widget.getPreferredSize());
-        //}
-
-        widget.addComponentListener(this);
+        m_container.add(widget, gbc);
     }
 
     public final void setColumnStretch(int column, int factor)
@@ -380,16 +324,6 @@ public class qGridLayout extends JPanel implements ComponentListener
         m_rowStretchFactors.set(row, factor);
         m_rowTotalFactor += factor - current;
     }
-
-//    private void addHorizontalSpacing(int size)
-//    {
-//        add(createRigidArea(new Dimension(size, 0)));
-//    }
-//
-//    private void addVerticalSpacing(int size)
-//    {
-//        add(createRigidArea(new Dimension(0, size)));
-//    }
 
     private double calculateColumnWeight(int column, int columnSpan)
     {
@@ -435,7 +369,7 @@ public class qGridLayout extends JPanel implements ComponentListener
             columnCount = Integer.max(columnCount, m_columnCount);
 
             // TODO: use capacity and more smart grow algorithm
-            ArrayList<qGridLayoutItem> layoutItems =
+            ArrayList<qGridWidgetItem> layoutItems =
                     new ArrayList<>(Collections.nCopies(rowCount * columnCount, null));
 
             for (int row = 0; row < m_rowCount; ++row)
@@ -462,17 +396,17 @@ public class qGridLayout extends JPanel implements ComponentListener
         }
     }
 
-    private qGridLayoutItem getLayoutItem(int row, int column)
+    private qGridWidgetItem getLayoutItem(int row, int column)
     {
         return m_layoutItems.get(row * m_columnCount + column);
     }
 
-    private void setLayoutItem(qGridLayoutItem item, int row, int column)
+    private void setLayoutItem(qGridWidgetItem item, int row, int column)
     {
         m_layoutItems.set(row * m_columnCount + column, item);
     }
 
-    private void setLayoutItem(qGridLayoutItem item, int row, int column, int rowSpan, int columnSpan)
+    private void setLayoutItem(qGridWidgetItem item, int row, int column, int rowSpan, int columnSpan)
     {
         for (int i=0; i < rowSpan; ++i)
         {
@@ -481,11 +415,6 @@ public class qGridLayout extends JPanel implements ComponentListener
                 setLayoutItem(item, row + i, column + i);
             }
         }
-    }
-
-    private void update()
-    {
-
     }
 
     @Override

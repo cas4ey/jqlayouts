@@ -1,3 +1,5 @@
+package du.ui.qlayouts;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -5,40 +7,24 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.util.ArrayList;
 
-public abstract class qBoxLayout extends Box implements ComponentListener
+public abstract class qBoxWidget extends Box implements ComponentListener
 {
     public enum Direction { Horizontal, Vertical }
 
     private int m_totalFactor = 0;
     private int m_spacing = 0;
-    private final ArrayList<qLayoutItem> m_layoutItems = new ArrayList<>();
+    private final ArrayList<qBoxWidgetItem> m_layoutItems = new ArrayList<>();
     private final ArrayList<Box.Filler> m_autoSpacers = new ArrayList<>();
-    private final JComponent m_parent;
     private final Direction m_direction;
 
-    protected abstract void update();
+    protected abstract void updateSize();
 
-    qBoxLayout(JComponent parent, Direction direction)
+    qBoxWidget(Direction direction)
     {
         super(direction == Direction.Horizontal ? BoxLayout.X_AXIS : BoxLayout.Y_AXIS);
-
         m_direction = direction;
-        m_parent = parent;
-
         setMargins(0);
-
-        parent.setLayout(new BorderLayout());
-        parent.add(this, BorderLayout.CENTER);
-
-        //setSize(parent.getSize());
-
-        parent.addComponentListener(this);
         addComponentListener(this);
-    }
-
-    public final JComponent parent()
-    {
-        return m_parent;
     }
 
     public final Direction direction()
@@ -123,40 +109,20 @@ public abstract class qBoxLayout extends Box implements ComponentListener
     @Override
     public final Dimension getMinimumSize()
     {
-        final Insets insets = getInsets();
-        final Dimension d = new Dimension(insets.left + insets.right,
-                                          insets.top + insets.bottom);
-
-        final int spacing = m_spacing * m_autoSpacers.size();
-        if (m_direction == Direction.Horizontal)
-        {
-            d.width += spacing;
-        }
-        else
-        {
-            d.height += spacing;
-        }
-
-        for (qLayoutItem item : m_layoutItems)
-        {
-            if (!item.widget().isVisible() || item.widget() instanceof Box.Filler)
-            {
-                continue;
-            }
-
-            final Dimension wd = item.widget().getMinimumSize();
-            d.setSize(d.width + wd.width, d.height + wd.height);
-        }
-
-        return d;
+        return getCustomSize(Component::getMinimumSize);
     }
 
     @Override
     public final Dimension getPreferredSize()
     {
+        return getCustomSize(Component::getPreferredSize);
+    }
+
+    private Dimension getCustomSize(SizeGetter sizeGetter)
+    {
         final Insets insets = getInsets();
         final Dimension d = new Dimension(insets.left + insets.right,
-                                          insets.top + insets.bottom);
+                insets.top + insets.bottom);
 
         final int spacing = m_spacing * m_autoSpacers.size();
         if (m_direction == Direction.Horizontal)
@@ -168,15 +134,34 @@ public abstract class qBoxLayout extends Box implements ComponentListener
             d.height += spacing;
         }
 
-        for (qLayoutItem item : m_layoutItems)
+        int maxSize = 0;
+        for (qBoxWidgetItem item : m_layoutItems)
         {
             if (!item.widget().isVisible() || item.widget() instanceof Box.Filler)
             {
                 continue;
             }
 
-            final Dimension wd = item.widget().getPreferredSize();
-            d.setSize(d.width + wd.width, d.height + wd.height);
+            final Dimension wd = sizeGetter.get(item.widget());
+            if (m_direction == Direction.Horizontal)
+            {
+                d.width += wd.width;
+                maxSize = Integer.max(maxSize, wd.height);
+            }
+            else
+            {
+                d.height += wd.height;
+                maxSize = Integer.max(maxSize, wd.width);
+            }
+        }
+
+        if (m_direction == Direction.Horizontal)
+        {
+            d.height += maxSize;
+        }
+        else
+        {
+            d.width += maxSize;
         }
 
         return d;
@@ -187,12 +172,7 @@ public abstract class qBoxLayout extends Box implements ComponentListener
     {
         if (e.getComponent() == this)
         {
-            update();
-        }
-        else if (e.getComponent() == m_parent)
-        {
-            setPreferredSize(m_parent.getPreferredSize());
-            setSize(m_parent.getSize());
+            updateSize();
         }
     }
 
@@ -201,7 +181,7 @@ public abstract class qBoxLayout extends Box implements ComponentListener
     {
         if (e.getComponent() != this)
         {
-            update();
+            updateSize();
         }
     }
 
@@ -213,7 +193,7 @@ public abstract class qBoxLayout extends Box implements ComponentListener
     {
         if (e.getComponent() != this)
         {
-            update();
+            updateSize();
         }
     }
 
@@ -224,7 +204,7 @@ public abstract class qBoxLayout extends Box implements ComponentListener
 
     public final void addWidget(JComponent widget, int stretch) throws qException
     {
-        if (widget == m_parent)
+        if (widget == getParent())
         {
             throw new qException("Can't add widget into itself");
         }
@@ -252,10 +232,10 @@ public abstract class qBoxLayout extends Box implements ComponentListener
         stretch = Integer.max(stretch, 0);
         addItem(widget, stretch);
 
-        if (stretch == 0)
-        {
-            widget.setMinimumSize(widget.getPreferredSize());
-        }
+//        if (stretch == 0)
+//        {
+//            widget.setMinimumSize(widget.getPreferredSize());
+//        }
 
         widget.addComponentListener(this);
     }
@@ -303,7 +283,7 @@ public abstract class qBoxLayout extends Box implements ComponentListener
 
     private void addItem(Component widget, int stretchFactor)
     {
-        m_layoutItems.add(new qLayoutItem(widget, stretchFactor));
+        m_layoutItems.add(new qBoxWidgetItem(widget, stretchFactor));
         m_totalFactor += stretchFactor;
     }
 
@@ -317,8 +297,13 @@ public abstract class qBoxLayout extends Box implements ComponentListener
         add(createRigidArea(new Dimension(0, size)));
     }
 
-    protected final ArrayList<qLayoutItem> items()
+    protected final ArrayList<qBoxWidgetItem> items()
     {
         return m_layoutItems;
+    }
+
+    private interface SizeGetter
+    {
+        Dimension get(Component widget);
     }
 }

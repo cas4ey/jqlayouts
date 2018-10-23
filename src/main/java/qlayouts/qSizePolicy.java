@@ -1,3 +1,5 @@
+package du.ui.qlayouts;
+
 import java.awt.*;
 
 public final class qSizePolicy

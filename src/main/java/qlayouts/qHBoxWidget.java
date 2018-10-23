@@ -1,11 +1,13 @@
+package du.ui.qlayouts;
+
 import javax.swing.*;
 import java.awt.*;
 
-public class qHBoxLayout extends qBoxLayout
+public class qHBoxWidget extends qBoxWidget
 {
-    public qHBoxLayout(JComponent parent)
+    public qHBoxWidget()
     {
-        super(parent, Direction.Horizontal);
+        super(Direction.Horizontal);
     }
 
     @Override
@@ -13,11 +15,15 @@ public class qHBoxLayout extends qBoxLayout
     {
         int maxHeight = 0;
 
-        for (qLayoutItem item : items())
+        for (qBoxWidgetItem item : items())
         {
-            if (item.widget().isVisible() && !(item.widget() instanceof Box.Filler))
+            final Component widget = item.widget();
+            if (widget.isVisible() && !(widget instanceof Box.Filler))
             {
-                maxHeight = Integer.max(maxHeight, item.widget().getHeight());
+                final int prefHeight = widget.getPreferredSize().height;
+                final int currHeight = widget.getHeight();
+                final int h = Integer.max(currHeight, prefHeight);
+                maxHeight = Integer.max(maxHeight, h);
             }
         }
 
@@ -26,7 +32,7 @@ public class qHBoxLayout extends qBoxLayout
     }
 
     @Override
-    protected final void update()
+    protected final void updateSize()
     {
         if (totalFactor() == 0)
         {
@@ -37,11 +43,15 @@ public class qHBoxLayout extends qBoxLayout
 
         if (availableWidth <= 0)
         {
+            if (availableWidth < 0)
+            {
+                setSize(getWidth() - availableWidth, getHeight());
+            }
             return;
         }
 
         final float totalFactor = totalFactor();
-        for (qLayoutItem item : items())
+        for (qBoxWidgetItem item : items())
         {
             if (item.stretchFactor() == 0 || !item.widget().isVisible())
             {

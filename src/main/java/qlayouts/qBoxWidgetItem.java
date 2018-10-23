@@ -1,9 +1,11 @@
-final class qLayoutItem
+package du.ui.qlayouts;
+
+final class qBoxWidgetItem
 {
     private final java.awt.Component m_widget;
     private final int m_stretchFactor;
 
-    qLayoutItem(java.awt.Component widget, int stretchFactor)
+    qBoxWidgetItem(java.awt.Component widget, int stretchFactor)
     {
         m_widget = widget;
         m_stretchFactor = stretchFactor;
