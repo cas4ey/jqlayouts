@@ -11,7 +11,7 @@ public class qVBoxWidget extends qBoxWidget
     }
 
     @Override
-    public final Dimension getMaximumSize()
+    public final Dimension calcMaximumSize()
     {
         int maxWidth = 0;
 
@@ -41,12 +41,9 @@ public class qVBoxWidget extends qBoxWidget
 
         final int availableHeight = getHeight() - getMinimumSize().height - 1;
 
-        if (availableHeight <= 0)
+        if (availableHeight < 0)
         {
-            if (availableHeight < 0)
-            {
-                setSize(getWidth(), getHeight() - availableHeight);
-            }
+            setSize(getWidth(), getHeight() - availableHeight);
             return;
         }
 
