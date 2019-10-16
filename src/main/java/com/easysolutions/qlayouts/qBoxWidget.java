@@ -4,7 +4,7 @@ Qt-like layouts for Java swing.
 
 MIT License
 
-Copyright (c) 2018 Victor Zarubkin
+Copyright (c) 2018-2019 Victor Zarubkin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,7 @@ public abstract class qBoxWidget extends Box implements ComponentListener
 {
     public enum Direction { Horizontal, Vertical }
 
+    private Dimension m_prevSize = new Dimension(0, 0);
     private int m_totalFactor = 0;
     private int m_spacing = 0;
     private final AtomicReference<Dimension> m_minSize  = new AtomicReference<>(new Dimension(0, 0));
@@ -55,6 +56,7 @@ public abstract class qBoxWidget extends Box implements ComponentListener
     private final PrefSizeChangeListener m_prefSizeListener = new PrefSizeChangeListener(this);
     private final AtomicInteger m_update = new AtomicInteger(0);
     private final AtomicInteger m_changeCount = new AtomicInteger(0);
+    private final AtomicInteger m_parentUpdateCount = new AtomicInteger(0);
 
     protected abstract void updateSize();
     protected abstract Dimension calcMaximumSize();
@@ -244,10 +246,19 @@ public abstract class qBoxWidget extends Box implements ComponentListener
     @Override
     public final void componentResized(ComponentEvent e)
     {
-        if (e.getComponent() == this)
-        {
-            update();
-        }
+        doUpdate(() -> {
+            if (e.getComponent() == this) {
+                if (m_prevSize.equals(getSize())) {
+                    return;
+                }
+                m_prevSize = getSize();
+            }
+
+            recalculateSizeAll();
+            updateSize();
+
+            m_prevSize = getSize();
+        });
     }
 
     @Override
@@ -255,7 +266,7 @@ public abstract class qBoxWidget extends Box implements ComponentListener
     {
         if (e.getComponent() != this)
         {
-            delayedUpdate(this::updateOnVisibilityChange);
+            delayedUpdate(this::updateOnVisibilityChange, m_changeCount);
         }
     }
 
@@ -267,7 +278,7 @@ public abstract class qBoxWidget extends Box implements ComponentListener
     {
         if (e.getComponent() != this)
         {
-            delayedUpdate(this::updateOnVisibilityChange);
+            delayedUpdate(this::updateOnVisibilityChange, m_changeCount);
         }
     }
 
@@ -387,7 +398,14 @@ public abstract class qBoxWidget extends Box implements ComponentListener
 
     private void endUpdating()
     {
-        m_update.decrementAndGet();
+        if (m_update.decrementAndGet() < 1) {
+            delayedUpdate(() -> {
+                if (getParent() != null) {
+                    getParent().invalidate();
+                    getParent().repaint();
+                }
+            }, m_parentUpdateCount);
+        }
     }
 
     private boolean isUpdating()
@@ -395,11 +413,15 @@ public abstract class qBoxWidget extends Box implements ComponentListener
         return m_update.get() > 0;
     }
 
-    private void update()
-    {
-        beginUpdating();
-        updateSize();
-        endUpdating();
+    private void doUpdate(Runnable updater) {
+        if (!isUpdating()) {
+            try {
+                beginUpdating();
+                updater.run();
+            } finally {
+                endUpdating();
+            }
+        }
     }
 
     private void recalculateSizeAll()
@@ -419,17 +441,20 @@ public abstract class qBoxWidget extends Box implements ComponentListener
 
     private void updateOnVisibilityChange()
     {
-        recalculateSizeAll();
-        update();
+        doUpdate(() -> {
+            recalculateSizeAll();
+            updateSize();
+            m_prevSize = getSize();
+        });
     }
 
-    private void delayedUpdate(Runnable func)
+    private static void delayedUpdate(Runnable func, AtomicInteger changeCount)
     {
-        if (m_changeCount.getAndIncrement() == 0)
+        if (changeCount.getAndIncrement() == 0)
         {
             SwingUtilities.invokeLater(() -> {
                 func.run();
-                m_changeCount.set(0);
+                changeCount.set(0);
             });
         }
     }
@@ -476,8 +501,7 @@ public abstract class qBoxWidget extends Box implements ComponentListener
         @Override
         public final void propertyChange(PropertyChangeEvent e)
         {
-            if (!self.isUpdating())
-            {
+            if (!self.isUpdating()) {
                 change();
             }
         }
@@ -497,10 +521,10 @@ public abstract class qBoxWidget extends Box implements ComponentListener
         @Override
         protected final void change()
         {
-            self.delayedUpdate(() -> {
+            qBoxWidget.delayedUpdate(() -> {
                 self.firePropertyChange("minimumSize", null, self.updateMinimumSize());
                 self.firePropertyChange("maximumSize", null, self.updateMaximumSize());
-            });
+            }, m_changeCount);
         }
     }
 
@@ -516,7 +540,14 @@ public abstract class qBoxWidget extends Box implements ComponentListener
         @Override
         protected final void change()
         {
-            self.delayedUpdate(() -> self.firePropertyChange("preferredSize", null, self.updatePreferredSize()));
+            qBoxWidget.delayedUpdate(
+                    () -> self.firePropertyChange(
+                            "preferredSize",
+                            null,
+                            self.updatePreferredSize()
+                    ),
+                    m_changeCount
+            );
         }
     }
 }

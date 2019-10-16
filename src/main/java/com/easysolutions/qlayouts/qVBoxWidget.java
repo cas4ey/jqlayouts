@@ -61,45 +61,47 @@ public class qVBoxWidget extends qBoxWidget
     @Override
     protected final void updateSize()
     {
-        if (totalFactor() == 0)
-        {
+        int availableSize = getHeight() - getMinimumSize().height;
+
+        if (availableSize > 0) {
+            for (qBoxWidgetItem item : items()) {
+                if (item.widget().isVisible() && item.stretchFactor() == 0) {
+                    availableSize -= item.widget().getHeight();
+                }
+            }
+        }
+
+        if (availableSize < 0) {
+            setSize(getWidth(), getHeight() - availableSize);
             return;
         }
 
-        final int availableHeight = getHeight() - getMinimumSize().height - 1;
-
-        if (availableHeight < 0)
-        {
-            setSize(getWidth(), getHeight() - availableHeight);
+        if (totalFactor() == 0) {
             return;
         }
 
         final float totalFactor = totalFactor();
-        for (qBoxWidgetItem item : items())
-        {
-            if (item.stretchFactor() == 0 || !item.widget().isVisible())
-            {
+        for (qBoxWidgetItem item : items()) {
+            if (!item.widget().isVisible() || item.stretchFactor() == 0) {
                 continue;
             }
 
             final boolean isFiller = item.widget() instanceof Box.Filler;
-            final int minHeight = isFiller ? 0 : item.widget().getMinimumSize().height;
-            final int height = minHeight + (int)Math.floor((float)(availableHeight * item.stretchFactor()) / totalFactor);
-            final int preferredHeight = item.widget().getPreferredSize().height;
-            final int currentHeight = item.widget().getHeight();
+            final int minSize = isFiller ? 0 : item.widget().getMinimumSize().height;
+            final int size = minSize + (int)Math.floor((float)(availableSize * item.stretchFactor()) / totalFactor);
+            final int preferredSize = item.widget().getPreferredSize().height;
+            final int currentSize = item.widget().getHeight();
 
-            if (preferredHeight != height || currentHeight != height)
-            {
-                if (isFiller)
-                {
+            if (preferredSize > size || currentSize != size) {
+                if (isFiller) {
                     Box.Filler filler = (Box.Filler)item.widget();
-                    final Dimension d = new Dimension(0, height);
+                    final Dimension d = new Dimension(0, size);
                     filler.changeShape(d, d, d);
-                }
-                else
-                {
-                    item.widget().setPreferredSize(new Dimension(item.widget().getPreferredSize().width, height));
-                    item.widget().setSize(item.widget().getWidth(), height);
+                } else {
+                    if (preferredSize > size) {
+                        item.widget().setPreferredSize(new Dimension(item.widget().getPreferredSize().width, size));
+                    }
+                    item.widget().setSize(item.widget().getWidth(), size);
                 }
             }
         }

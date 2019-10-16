@@ -61,45 +61,47 @@ public class qHBoxWidget extends qBoxWidget
     @Override
     protected final void updateSize()
     {
-        if (totalFactor() == 0)
-        {
+        int availableSize = getWidth() - getMinimumSize().width;
+
+        if (availableSize > 0) {
+            for (qBoxWidgetItem item : items()) {
+                if (item.widget().isVisible() && item.stretchFactor() == 0) {
+                    availableSize -= item.widget().getWidth();
+                }
+            }
+        }
+
+        if (availableSize < 0) {
+            setSize(getWidth() - availableSize, getHeight());
             return;
         }
 
-        final int availableWidth = getWidth() - getMinimumSize().width - 1;
-
-        if (availableWidth < 0)
-        {
-            setSize(getWidth() - availableWidth, getHeight());
+        if (totalFactor() == 0) {
             return;
         }
 
         final float totalFactor = totalFactor();
-        for (qBoxWidgetItem item : items())
-        {
-            if (item.stretchFactor() == 0 || !item.widget().isVisible())
-            {
+        for (qBoxWidgetItem item : items()) {
+            if (!item.widget().isVisible() || item.stretchFactor() == 0) {
                 continue;
             }
 
             final boolean isFiller = item.widget() instanceof Box.Filler;
-            final int minWidth = isFiller ? 0 : item.widget().getMinimumSize().width;
-            final int width = minWidth + (int)Math.floor((float)(availableWidth * item.stretchFactor()) / totalFactor);
-            final int preferredWidth = item.widget().getPreferredSize().width;
-            final int currentWidth = item.widget().getWidth();
+            final int minSize = isFiller ? 0 : item.widget().getMinimumSize().width;
+            final int size = minSize + (int)Math.floor((float)(availableSize * item.stretchFactor()) / totalFactor);
+            final int preferredSize = item.widget().getPreferredSize().width;
+            final int currentSize = item.widget().getWidth();
 
-            if (preferredWidth != width || currentWidth != width)
-            {
-                if (isFiller)
-                {
+            if (preferredSize > size || currentSize != size) {
+                if (isFiller) {
                     Box.Filler filler = (Box.Filler)item.widget();
-                    final Dimension d = new Dimension(width, 0);
+                    final Dimension d = new Dimension(size, 0);
                     filler.changeShape(d, d, d);
-                }
-                else
-                {
-                    item.widget().setPreferredSize(new Dimension(width, item.widget().getPreferredSize().height));
-                    item.widget().setSize(width, item.widget().getHeight());
+                } else {
+                    if (preferredSize > size) {
+                        item.widget().setPreferredSize(new Dimension(size, item.widget().getPreferredSize().height));
+                    }
+                    item.widget().setSize(size, item.widget().getHeight());
                 }
             }
         }
